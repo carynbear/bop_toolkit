@@ -18,7 +18,7 @@ from bop_toolkit_lib import visibility
 ################################################################################
 p = {
     # See dataset_params.py for options.
-    "dataset": "lm",
+    "dataset": "ipd",
     # Dataset split. Options: 'train', 'val', 'test'.
     "dataset_split": "test",
     # Dataset split type. None = default. See dataset_params.py for options.
@@ -73,7 +73,10 @@ for scene_id in scene_ids:
 
     # Add object models.
     for obj_id in dp_model["obj_ids"]:
-        ren.add_object(obj_id, dp_model["model_tpath"].format(obj_id=obj_id))
+        try:
+            ren.add_object(obj_id, dp_model["model_tpath"].format(obj_id=obj_id))
+        except:
+            continue
 
     im_ids = sorted(scene_gt.keys())
     for im_id in im_ids:

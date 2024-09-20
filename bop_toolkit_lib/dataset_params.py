@@ -24,7 +24,13 @@ def get_camera_params(datasets_path, dataset_name, cam_type=None):
     :param cam_type: Type of camera.
     :return: Dictionary with camera parameters for the specified dataset.
     """
-    if dataset_name == "tless":
+    if dataset_name == "ipd":
+        # Includes images captured by 13 sensors. Use Photoneo as default.
+        if cam_type is None:
+            cam_type = "photoneo"
+        cam_filename = "camera_{}.json".format(cam_type)
+
+    elif dataset_name == "tless":
         # Includes images captured by three sensors. Use Primesense as default.
         if cam_type is None:
             cam_type = "primesense"
@@ -73,6 +79,7 @@ def get_model_params(datasets_path, dataset_name, model_type=None):
     """
     # Object ID's.
     obj_ids = {
+        "ipd": list(range(1, 22)),
         "lm": list(range(1, 16)),
         "lmo": [1, 5, 6, 8, 9, 10, 11, 12],
         "tless": list(range(1, 31)),
@@ -94,6 +101,7 @@ def get_model_params(datasets_path, dataset_name, model_type=None):
     # ID's of objects with ambiguous views evaluated using the ADI pose error
     # function (the others are evaluated using ADD). See Hodan et al. (ECCVW'16).
     symmetric_obj_ids = {
+        "ipd": [], #TODO: Figure out the objects which have symmetry!
         "lm": [3, 7, 10, 11],
         "lmo": [10, 11],
         "tless": list(range(1, 31)),
@@ -183,9 +191,44 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
     exts = None  # has to be set if modalities_have_separate_annotations is True
 
     supported_error_types = ["ad", "add", "adi", "vsd", "mssd", "mspd", "cus", "proj"]
+    if dataset_name == "ipd":
+        p["scene_ids"] = list(range(0, 23))
+
+        # Use images from the Photoneo sensor by default.
+        if split_type is None:
+            split_type = "photoneo"
+
+
+        p["im_size"] = {
+            "train": {
+                "photoneo": (0, 0), #TODO: Determine this size based on simulation
+                #TODO: add other camera sensors!
+            },
+            "test": {
+                "photoneo": (2064, 1544),
+                # YOU CAN USE THE IPDReader class to get image size. `height, width = reader.get_img(30).shape[:2]`
+                "flir1": (0, 0), #TODO: check image size. 
+                "flir2": (0, 0), #TODO: check image size
+                "flir3": (0, 0), #TODO: check image size
+                "flir4": (0, 0), #TODO: check image size
+                "basler_hr1": (0, 0), #TODO: check image size
+                "basler_hr2": (0, 0), #TODO: check image size
+                "basler_hr3": (0, 0), #TODO: check image size
+                "basler_hr4": (0, 0), #TODO: check image size
+                "basler_hr5": (0, 0), #TODO: check image size
+                "basler_lr1": (0, 0), #TODO: check image size
+                "basler_lr2": (0, 0), #TODO: check image size
+                "basler_lr3": (0, 0), #TODO: check image size
+            },
+        }[split][split_type]
+
+        if split == "test":
+            p["depth_range"] = None  #TODO: Not calculated yet.
+            p["azimuth_range"] = None  #TODO: Not calculated yet.
+            p["elev_range"] = None  #TODO:Not calculated yet.
 
     # Linemod (LM).
-    if dataset_name == "lm":
+    elif dataset_name == "lm":
         p["scene_ids"] = list(range(1, 16))
         p["im_size"] = (640, 480)
 
