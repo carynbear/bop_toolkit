@@ -59,6 +59,7 @@ p = {
     "targets_filename": "test_targets_bop24.json",
     "num_workers": config.num_workers,  # Number of parallel workers for the calculation of errors.
     "use_gpu": config.use_gpu,  # Use torch for the calculation of errors.
+    "max_num_estimates_per_image": 100,  # Maximum number of estimates per image.
 }
 ################################################################################
 
@@ -106,7 +107,7 @@ for result_filename in p["result_filenames"]:
 
     # Calculate the average estimation time per image.
     ests = inout.load_bop_results(
-        os.path.join(p["results_path"], result_filename), version="bop19"
+        os.path.join(p["results_path"], result_filename), version="bop19", max_num_estimates_per_image=p["max_num_estimates_per_image"]
     )
     times = {}
     times_available = True
@@ -233,7 +234,6 @@ for result_filename in p["result_filenames"]:
                 num_instances_per_object = inout.load_json(scores_path)[
                     "num_targets_per_object"
                 ]
-
                 for obj_id in scores:
                     if num_instances_per_object[obj_id] > 0:
                         mAP_scores_per_object.setdefault(obj_id, []).append(scores[obj_id])
@@ -252,8 +252,10 @@ for result_filename in p["result_filenames"]:
                 )
             mAP_over_correct_ths = []
             for obj_id in mAP_scores_per_object:
-                # make sure that the object is not ignored
-                # assert obj_id not in num_object_ids_ignored
+                # if the object has zero instance, it means it was not among the targets
+                # and should not be considered for final AP computation
+                if num_instances_per_object[obj_id] == 0:
+                    continue
 
                 mAP_over_correct_th = np.mean(mAP_scores_per_object[obj_id])
                 logger.info(

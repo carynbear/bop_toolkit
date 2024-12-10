@@ -86,6 +86,7 @@ p = {
     ),
     "eval_mode": "localization",  # Options: 'localization', 'detection'.
     "eval_modality": None,  # Options: depends on the dataset, e.g. for hot3d 'rgb'
+    "max_num_estimates_per_image": 100,  # Maximum number of estimates per image. Only used for detection tasks.
 }
 ################################################################################
 
@@ -195,8 +196,7 @@ for error_dir_path in p["error_dir_paths"]:
 
     # Load the estimation targets to consider.
     targets = inout.load_json(
-        os.path.join(dp_split["base_path"], p["targets_filename"])
-    )
+        os.path.join(dp_split["base_path"], p["targets_filename"]))
 
     # Organize the targets by scene, image and object.
     logger.info("Organizing estimation targets...")
@@ -246,9 +246,7 @@ for error_dir_path in p["error_dir_paths"]:
             im_gt = scene_gt[im_id]
             im_gt_info = scene_gt_info[im_id]
             # We need to re-define the target file for 6D detection tasks because:
-            # 1. For BOP-Classic, the function of calculating object visibility has been changed, we cannot create the exact same number of `visib_count` as in target_filename _bop19.json from GT
-            # so our unit tests with using prediction created from GT fails, and cannot get 100%. Re-loading the target objects from GT make sures the score will be 100%
-            # 2. We want to consider all GT, not only GT>visib_gt_min since we want to ignore estimation matches with GT < visib_gt_min.  
+            # We want to consider all GT, not only GT>visib_gt_min since we want to ignore estimation matches with GT < visib_gt_min.  
             if p["eval_mode"] == "detection":
                 im_targets = inout.get_im_targets(im_gt=im_gt, im_gt_info=im_gt_info, visib_gt_min=p["visib_gt_min"], eval_mode=p["eval_mode"])
 

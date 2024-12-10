@@ -90,6 +90,7 @@ p = {
     ),
     "num_workers": config.num_workers,  # Number of parallel workers for the calculation of errors.
     "eval_mode": "localization",  # Options: 'localization', 'detection'.
+    "max_num_estimates_per_image": 100,  # Maximum number of estimates per image. Only used for detection tasks.
 }
 ################################################################################
 
@@ -245,7 +246,7 @@ for result_filename in p["result_filenames"]:
 
     # Load pose estimates.
     logger.info("Loading pose estimates...")
-    ests = inout.load_bop_results(os.path.join(p["results_path"], result_filename))
+    ests = inout.load_bop_results(os.path.join(p["results_path"], result_filename), max_num_estimates_per_image=p["max_num_estimates_per_image"] if p["eval_mode"] == "detection" else None)
 
     # Organize the pose estimates by scene, image and object.
     logger.info("Organizing pose estimates...")
@@ -333,7 +334,10 @@ for result_filename in p["result_filenames"]:
             im_gt = scene_gt[im_id]
             im_gt_info = scene_gt_info[im_id]
             if p["eval_mode"] == "detection":
-                # re-load the im_targets on the fly.
+                # We need to re-define the target file for 6D detection tasks because:
+                # 1. For BOP-Classic, the function of calculating object visibility has been changed, we cannot create the exact same number of `visib_count` as in target_filename _bop19.json from GT
+                # so our unit tests with using prediction created from GT fails, and cannot get 100%. Re-loading the target objects from GT make sures the score will be 100%
+                # 2. We want to consider all GT, not only GT>visib_gt_min since we want to ignore estimation matches with GT < visib_gt_min.  
                 im_targets = inout.get_im_targets(im_gt=im_gt, im_gt_info=im_gt_info, visib_gt_min=p["visib_gt_min"], eval_mode=p["eval_mode"])
 
             for obj_id, target in im_targets.items():
@@ -380,6 +384,7 @@ for result_filename in p["result_filenames"]:
                     t_e = est["t"]
 
                     errs = {}  # Errors w.r.t. GT poses of the same object class.
+                    gt_visib_fracts = {}
                     for gt_id, gt in enumerate(scene_gt[im_id]):
                         if gt["obj_id"] != obj_id:
                             continue
@@ -560,6 +565,7 @@ for result_filename in p["result_filenames"]:
                             raise ValueError("Unknown pose error function.")
 
                         errs[gt_id] = e
+                        gt_visib_fracts[gt_id] = gt_visib_fract
                         
                     # Save the calculated errors.
                     im_errs.append(
@@ -570,7 +576,7 @@ for result_filename in p["result_filenames"]:
                             "score": est["score"],
                             "errors": errs,
                             "scene_id": scene_id,
-                            "gt_visib_fract": gt_visib_fract,
+                            "gt_visib_fracts": gt_visib_fracts,
                         }
                     )
                 assert (
