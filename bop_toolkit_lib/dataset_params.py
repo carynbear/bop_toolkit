@@ -3,6 +3,7 @@
 
 """Parameters of the BOP datasets."""
 
+from collections import defaultdict
 import math
 import glob
 import os
@@ -191,44 +192,9 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
     exts = None  # has to be set if modalities_have_separate_annotations is True
 
     supported_error_types = ["ad", "add", "adi", "vsd", "mssd", "mspd", "cus", "proj"]
-    if dataset_name == "ipd":
-        p["scene_ids"] = list(range(0, 23))
-
-        # Use images from the Photoneo sensor by default.
-        if split_type is None:
-            split_type = "photoneo"
-
-
-        p["im_size"] = {
-            "train": {
-                "photoneo": (0, 0), #TODO: Determine this size based on simulation
-                #TODO: add other camera sensors!
-            },
-            "test": {
-                "photoneo": (2064, 1544),
-                # YOU CAN USE THE IPDReader class to get image size. `height, width = reader.get_img(30).shape[:2]`
-                "flir1": (0, 0), #TODO: check image size. 
-                "flir2": (0, 0), #TODO: check image size
-                "flir3": (0, 0), #TODO: check image size
-                "flir4": (0, 0), #TODO: check image size
-                "basler_hr1": (0, 0), #TODO: check image size
-                "basler_hr2": (0, 0), #TODO: check image size
-                "basler_hr3": (0, 0), #TODO: check image size
-                "basler_hr4": (0, 0), #TODO: check image size
-                "basler_hr5": (0, 0), #TODO: check image size
-                "basler_lr1": (0, 0), #TODO: check image size
-                "basler_lr2": (0, 0), #TODO: check image size
-                "basler_lr3": (0, 0), #TODO: check image size
-            },
-        }[split][split_type]
-
-        if split == "test":
-            p["depth_range"] = None  #TODO: Not calculated yet.
-            p["azimuth_range"] = None  #TODO: Not calculated yet.
-            p["elev_range"] = None  #TODO:Not calculated yet.
-
+    
     # Linemod (LM).
-    elif dataset_name == "lm":
+    if dataset_name == "lm":
         p["scene_ids"] = list(range(1, 16))
         p["im_size"] = (640, 480)
 
@@ -476,6 +442,53 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
             "gray2": "jpg",
         }
 
+        if split == "test":
+            p["depth_range"] = None  # Not calculated yet.
+            p["azimuth_range"] = None  # Not calculated yet.
+            p["elev_range"] = None  # Not calculated yet.
+
+        supported_error_types = ["ad", "add", "adi", "mssd", "mspd"]
+
+    # IPD (following HOT3D)
+    elif dataset_name == "ipd":
+        modalities_have_separate_annotations = True 
+        p["im_modalities"] = [
+            "rgb_photoneo",
+            *[f"rgb_basler_lr{i}" for i in range(1, 4)], 
+            *[f"rgb_basler_hr{i}" for i in range(1, 6)], 
+            *[f"rgb_flir{i}" for i in range(1, 5)], 
+        ]
+
+        p["scene_ids"] = {
+            "test": list(range(0, 23)),
+            "train": [] #TODO: add train scene ids
+        }[split]
+
+        # Setting eval_modality and im_size for each camera sensor
+        p["photoneo_eval_modality"] = "rgb_photoneo"
+        p["photoneo_im_size"] = {
+            "rgb_photoneo": (2064, 1544),
+            "depth_photoneo": (2064, 1544),
+        }
+        for i in range(1, 4):
+            p[f"basler_lr{i}_eval_modality"] = f"rgb_basler_lr{i}"
+            p[f"basler_lr{i}_im_size"] = { "rgb_basler_lr{i}": (1936, 1216) }
+
+        for i in range(1, 6):
+            p[f"basler_hr{i}_eval_modality"] = f"rgb_basler_hr{i}"
+            p[f"basler_hr{i}_im_size"] = { "rgb_basler_hr{i}": (2064, 1544) } #TODO: check image size
+
+        for i in range(1, 5):
+            p[f"flir{i}_eval_modality"] = f"rgb_flir{i}"
+            p[f"flir{i}_im_size"] = { "rgb_flir{i}": (2064, 1544) } #TODO: check image size
+
+        # Setting file extension for each modality
+        exts = {} # Add any specific extensions here
+        exts = defaultdict(lambda:".png") # If not specified, default to .png
+
+        p["eval_modality"] = lambda scene_id: p["photoneo_eval_modality"] # TODO: is this correct?
+        # p["im_size"] = p["photoneo_im_size"][p["photoneo_eval_modality"]] # TODO: is this correct?
+        
         if split == "test":
             p["depth_range"] = None  # Not calculated yet.
             p["azimuth_range"] = None  # Not calculated yet.
