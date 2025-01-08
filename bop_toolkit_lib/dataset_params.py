@@ -97,6 +97,8 @@ def get_model_params(datasets_path, dataset_name, model_type=None):
         "hopev2": list(range(1, 29)),
         "hot3d": list(range(1, 34)),
         "handal": list(range(1, 41)),
+        "ipd": list(range(0,21)),
+        "xyz": list(range(1,18))
     }[dataset_name]
 
     # ID's of objects with ambiguous views evaluated using the ADI pose error
@@ -119,6 +121,8 @@ def get_model_params(datasets_path, dataset_name, model_type=None):
         "hopev2": [],
         "hot3d": [1, 2, 3, 5, 22, 24, 25, 29, 30, 32],
         "handal": [26, 35, 36, 37, 38, 39, 40],
+        "ipd": [],
+        "xyz": []
     }[dataset_name]
 
     # T-LESS includes two types of object models, CAD and reconstructed.
@@ -448,6 +452,86 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
             p["elev_range"] = None  # Not calculated yet.
 
         supported_error_types = ["ad", "add", "adi", "mssd", "mspd"]
+    elif dataset_name == "ipd":
+            modalities_have_separate_annotations = True 
+            p["im_modalities"] = ["rgb_photoneo", "depth_photoneo"]
+            p["test_scene_ids"] = list(range(0,1))
+            # p["test_aria_scene_ids"] = list(range(3365, 3832))
+            p["scene_ids"] = {
+                "test": p["test_scene_ids"],  # test_quest3 + test_aria
+                "train": p["test_scene_ids"],  # train_quest3 + train_aria
+                "train_pbr": p["test_scene_ids"],  # train_quest3 + train_aria
+            }[split]
+            # p["im_size"] = (2400, 2400)
+            # p["im_size"] = (1936, 1216)
+            
+            p["photoneo_im_size"] = (2064, 1544)
+            p["im_size"] = p["photoneo_im_size"]
+            
+
+
+            def ipd_eval_modality(scene_id):
+                return "rgb_photoneo"
+
+            p["eval_modality"] = ipd_eval_modality
+            
+            exts = {
+                "rgb_photoneo": ".png",
+                "depth_photoneo": ".png",
+            }
+
+
+            if split == "test":
+                p["depth_range"] = None  # Not calculated yet.
+                p["azimuth_range"] = None  # Not calculated yet.
+                p["elev_range"] = None  # Not calculated yet.
+
+            supported_error_types = ["ad", "add", "adi", "mssd", "mspd"]
+
+    elif dataset_name == "xyz":
+        modalities_have_separate_annotations = True 
+        p["im_modalities"] = ["gray_photoneo", "depth_photoneo", "gray_xyz", "depth_xyz", "rgb_realsense", "depth_realsense"]
+        p["test_scene_ids"] = list(range(1,87))
+        # p["test_aria_scene_ids"] = list(range(3365, 3832))
+        p["scene_ids"] = {
+            "test": p["test_scene_ids"],  # test_quest3 + test_aria
+            "train": p["test_scene_ids"],  # train_quest3 + train_aria
+            "train_pbr": list(range(50)),  # train_quest3 + train_aria
+        }[split]
+
+        # These are probably mixed up in the real data!
+        p["photoneo_im_size"] = (1440, 1080)
+        p["realsense_im_size"] = (1280, 720)
+        p["xyz_im_size"] = (2064, 1544)
+        # pbr im size
+        p["im_size"] = p["photoneo_im_size"]
+
+        def xyz_eval_modality(scene_id):
+            return "gray_xyz"
+
+        p["eval_modality"] = xyz_eval_modality
+
+        if "pbr" == split_type:
+            # The PBR data is in classical BOP format without sensor names.
+            p["eval_modality"] = None
+            modalities_have_separate_annotations = False
+
+        exts = {
+            "gray_photoneo": ".png",
+            "depth_photoneo": ".png",
+            "gray_xyz": ".png",
+            "depth_xyz": ".png",
+            "rgb_realsense": ".png",
+            "depth_realsense": ".png",
+        }
+        rgb_ext = ".png"
+
+        if split == "test":
+            p["depth_range"] = None  # Not calculated yet.
+            p["azimuth_range"] = None  # Not calculated yet.
+            p["elev_range"] = None  # Not calculated yet.
+
+        supported_error_types = ["ad", "add", "adi", "mssd", "mspd"]
 
     # IPD (following HOT3D)
     elif dataset_name == "ipd":
@@ -556,7 +640,14 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
 
     else:
         assert exts is not None, "Need to set 'exts' for dataset {}".format()
+        present_scene_id = get_present_scene_ids(p)[0]
         for moda in p["im_modalities"]:
+            sensor_moda = moda
+            if not os.path.exists(join(
+                        split_path, "{present_scene_id:06d}", "scene_gt_{}.json".format(moda)
+                    )):
+                # If modalities have aligned extrinsics/intrinsics they are combined in one file 
+                sensor_moda = moda[(moda.find("_") + 1):]
             p.update(
                 {
                     # Path template to modality image.
@@ -565,33 +656,34 @@ def get_split_params(datasets_path, dataset_name, split, split_type=None):
                     ),
                     # Path template to a file with per-image camera parameters.
                     "scene_camera_{}_tpath".format(moda): join(
-                        split_path, "{scene_id:06d}", "scene_camera_{}.json".format(moda)
+                        split_path, "{scene_id:06d}", "scene_camera_{}.json".format(sensor_moda)
                     ),
                     # Path template to a file with GT annotations.
                     "scene_gt_{}_tpath".format(moda): join(
-                        split_path, "{scene_id:06d}", "scene_gt_{}.json".format(moda)
+                        split_path, "{scene_id:06d}", "scene_gt_{}.json".format(sensor_moda)
                     ),
                     # Path template to a file with meta information about the GT annotations.
                     "scene_gt_info_{}_tpath".format(moda): join(
-                        split_path, "{scene_id:06d}", "scene_gt_info_{}.json".format(moda)
+                        split_path, "{scene_id:06d}", "scene_gt_info_{}.json".format(sensor_moda)
                     ),
                     # Path template to a file with the coco GT annotations.
                     "scene_gt_coco_{}_tpath".format(moda): join(
-                        split_path, "{scene_id:06d}", "scene_gt_coco_{}.json".format(moda)
+                        split_path, "{scene_id:06d}", "scene_gt_coco_{}.json".format(sensor_moda)
                     ),
                     # Path template to a mask of the full object silhouette.
                     "mask_{}_tpath".format(moda): join(
-                        split_path, "{scene_id:06d}", "mask_{}".format(moda), "{im_id:06d}_{gt_id:06d}.png"
+                        split_path, "{scene_id:06d}", "mask_{}".format(sensor_moda), "{im_id:06d}_{gt_id:06d}.png"
                     ),
                     # Path template to a mask of the visible part of an object silhouette.
                     "mask_visib_{}_tpath".format(moda): join(
                         split_path,
                         "{scene_id:06d}",
-                        "mask_visib_{}".format(moda),
+                        "mask_visib_{}".format(sensor_moda),
                         "{im_id:06d}_{gt_id:06d}.png",
                     ),
                 }
             )
+            print(p)
 
     return p
 
@@ -615,11 +707,13 @@ def scene_tpaths_keys(eval_modality, scene_id=None):
 
     tpath_keys = [
         "scene_gt_tpath", "scene_gt_info_tpath", "scene_camera_tpath", 
-        "scene_gt_coco_tpath", "mask_tpath", "mask_visib_tpath"
+        "scene_gt_coco_tpath", "mask_tpath", "mask_visib_tpath", "rgb_tpath", 
+        "gray_tpath", "depth_tpath"
     ]
     tpath_keys_multi = [
         "scene_gt_{}_tpath", "scene_gt_info_{}_tpath", "scene_camera_{}_tpath", 
-        "scene_gt_coco_{}_tpath", "mask_{}_tpath", "mask_visib_{}_tpath"
+        "scene_gt_coco_{}_tpath", "mask_{}_tpath", "mask_visib_{}_tpath", "{}_tpath", 
+        "{}_tpath", "depth_{}_tpath"
     ]
 
     assert len(tpath_keys) == len(tpath_keys_multi)
@@ -636,7 +730,10 @@ def scene_tpaths_keys(eval_modality, scene_id=None):
             tpath_keys_dic[key] = key_multi.format(eval_modality[scene_id])
         else:
             raise ValueError("eval_modality type not supported, either None, str, callable or dictionary")
-    
+    # TODO: Find a nicer solution. e.g. split modality and sensor throughout the bop toolkit.
+    parts = tpath_keys_dic["depth_tpath"].split("_")
+    parts.pop(1)
+    tpath_keys_dic["depth_tpath"] = "_".join(parts)
     return tpath_keys_dic
 
 
