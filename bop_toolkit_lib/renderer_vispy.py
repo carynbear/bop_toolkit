@@ -7,7 +7,7 @@ import inspect
 import os
 from typing import Hashable
 
-os.environ["PYOPENGL_PLATFORM"] = "egl"
+os.environ["PYOPENGL_PLATFORM"] = "pyglet"
 import numpy as np
 import OpenGL.GL as gl
 import vispy
@@ -16,8 +16,8 @@ from vispy import app, gloo
 
 # app backends: glfw, pyglet, egl
 # gl backends: gl2, pyopengl2, gl+
-app_backend = "egl"
-gl_backend = "gl2"  # "pyopengl2"  # speed: 'gl+' < 'gl2' < 'pyopengl2'
+app_backend = "glfw"
+gl_backend = "pyopengl2"  # "pyopengl2"  # speed: 'gl+' < 'gl2' < 'pyopengl2'
 vispy.use(app=app_backend, gl=gl_backend)
 print("vispy uses app: {}, gl: {}".format(app_backend, gl_backend))
 

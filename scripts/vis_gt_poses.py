@@ -13,7 +13,7 @@ from bop_toolkit_lib import config
 from bop_toolkit_lib import dataset_params
 from bop_toolkit_lib import inout
 from bop_toolkit_lib import misc
-from bop_toolkit_lib import pose_error_htt
+
 from bop_toolkit_lib import renderer
 from bop_toolkit_lib import visualization
 
@@ -24,9 +24,10 @@ logger = misc.get_logger(file_name)
 htt_available = False
 try:
     from bop_toolkit_lib import renderer_htt
+    from bop_toolkit_lib import pose_error_htt
     htt_available = True
 except ImportError as e:
-    logger.warn("""Missing hand_tracking_toolkit dependency,
+    logger.warning("""Missing hand_tracking_toolkit dependency,
                 mandatory if you are running evaluation on HOT3d.
                 Refer to the README.md for installation instructions.
                 """)
