@@ -18,7 +18,7 @@ from bop_toolkit_lib import transform as tr
 ################################################################################
 p = {
     # See dataset_params.py for options.
-    "dataset": "itodd",
+    "dataset": "ipd",
     # Type of the renderer (used for the VSD pose error function).
     "renderer_type": "vispy",  # Options: 'vispy', 'cpp', 'python'.
     # See misc.get_symmetry_transformations().
@@ -67,6 +67,10 @@ for obj_id in dp_model["obj_ids"]:
     # Load object model.
     misc.log("Loading 3D model of object {}...".format(obj_id))
     model_path = dp_model["model_tpath"].format(obj_id=obj_id)
+    if not os.path.exists(model_path):
+        print("Model file not found: {}".format(model_path))
+        continue
+
     ren.add_object(obj_id, model_path)
 
     poses = misc.get_symmetry_transformations(
@@ -91,4 +95,5 @@ for obj_id in dp_model["obj_ids"]:
             misc.ensure_dir(os.path.dirname(vis_rgb_path))
             inout.save_im(vis_rgb_path, vis_rgb)
 
+print("Output visualizations saved to: {}".format(vis_rgb_path))
 misc.log("Done.")
